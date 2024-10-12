@@ -119,14 +119,19 @@ FrameCollectorDelegate, HTTPHandlerDelegate {
             if !canWrite {
                 return
             }
-            
+
             var isCompressed = false
             var sendData = data
-            if let compressedData = s.compressionHandler?.compress(data: data) {
+
+            // Control frames should not be compressed. See the following issue for more details:
+            // https://github.com/daltoniam/Starscream/issues/848
+            let shouldCompress = opcode == .continueFrame || opcode == .textFrame || opcode == .binaryFrame
+
+            if shouldCompress, let compressedData = s.compressionHandler?.compress(data: data) {
                 sendData = compressedData
                 isCompressed = true
             }
-            
+
             let frameData = s.framer.createWriteFrame(opcode: opcode, payload: sendData, isCompressed: isCompressed)
             s.transport.write(data: frameData, completion: {_ in
                 completion?()
